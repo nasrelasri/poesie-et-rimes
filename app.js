@@ -23,9 +23,11 @@
     final: '',
     interim: '',
     resultat: null,
+    enseignant: null,
+    poemesBase: [],
   };
 
-  // ---------- Poèmes ajoutés par l'enseignant (stockés dans le navigateur) ----------
+  // ---------- Poèmes ajoutés dans ce navigateur seulement ----------
 
   function poemesPerso() {
     try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE)) || []; } catch { return []; }
@@ -33,7 +35,78 @@
   function sauverPerso(liste) {
     try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(liste)); } catch { /* stockage indisponible */ }
   }
-  const tousLesPoemes = () => POEMES.concat(poemesPerso());
+  const tousLesPoemes = () => POEMES.concat(etat.poemesBase, poemesPerso());
+
+  // ---------- Poèmes partagés (base de données) ----------
+
+  // Sans base, chacun ajoute dans son navigateur ; avec base, seuls les enseignants connectés.
+  const peutModifier = () => !Base.actif || !!etat.enseignant;
+
+  async function chargerBase() {
+    if (!Base.actif) return;
+    try {
+      const lignes = await Base.lister();
+      etat.poemesBase = lignes.map((p) => ({ ...p, id: 'base-' + p.id, idBase: p.id, partage: true }));
+      $('#erreur-base').hidden = true;
+    } catch (e) {
+      console.error('Base :', e);
+      $('#erreur-base').hidden = false;
+    }
+    afficherListe();
+  }
+
+  async function supprimerPoeme(p) {
+    if (!confirm('Supprimer « ' + p.titre + ' » ?')) return;
+    if (p.partage) {
+      try { await Base.supprimer(p.idBase); } catch (e) { alert('Suppression impossible : ' + e.message); return; }
+      await chargerBase();
+    } else {
+      sauverPerso(poemesPerso().filter((x) => x.id !== p.id));
+      afficherListe();
+    }
+  }
+
+  // Les poèmes ajoutés avant la base sont restés dans ce navigateur : on propose de les partager.
+  async function envoyerPoemesLocaux() {
+    const locaux = poemesPerso();
+    if (!locaux.length) return;
+    if (!confirm(locaux.length + ' poème(s) sont seulement sur cet appareil. Les envoyer dans la base pour tout le monde ?')) return;
+    const restants = [];
+    for (const p of locaux) {
+      try { await Base.ajouter(p); } catch { restants.push(p); }
+    }
+    sauverPerso(restants);
+    if (restants.length) alert(restants.length + ' poème(s) n\'ont pas pu être envoyés.');
+    await chargerBase();
+  }
+
+  function majEspaceEnseignant() {
+    const b = $('#btn-enseignant');
+    b.hidden = !Base.actif;
+    b.textContent = etat.enseignant ? '🔓 Déconnexion · خروج' : '🔑 Enseignant · الأستاذ';
+    $('#btn-ajouter').hidden = !peutModifier();
+    afficherListe();
+  }
+
+  function ouvrirConnexion() {
+    const form = $('#form-connexion');
+    form.reset();
+    $('#erreur-connexion').hidden = true;
+    $('#fenetre-connexion').showModal();
+  }
+
+  async function seConnecter(form) {
+    const bouton = form.querySelector('button[type=submit]');
+    bouton.disabled = true;
+    try {
+      await Base.connecter(form.email.value.trim(), form.motdepasse.value);
+      $('#fenetre-connexion').close();
+    } catch {
+      $('#erreur-connexion').hidden = false;
+    } finally {
+      bouton.disabled = false;
+    }
+  }
 
   // ---------- Écran d'accueil ----------
 
@@ -50,15 +123,13 @@
           creer('h3', p.langue === 'ar' ? 'ar' : '', p.titre),
           creer('p', p.langue === 'ar' ? 'ar' : '', p.auteur || ''),
         );
-        if (p.perso) {
+        if (p.perso && Base.actif) carte.append(creer('span', 'drapeau local', 'Cet appareil · هذا الجهاز'));
+        if ((p.partage && etat.enseignant) || p.perso) {
           const suppr = creer('span', 'suppr', '🗑');
           suppr.title = 'Supprimer · حذف';
           suppr.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (confirm('Supprimer « ' + p.titre + ' » ?')) {
-              sauverPerso(poemesPerso().filter((x) => x.id !== p.id));
-              afficherListe();
-            }
+            supprimerPoeme(p);
           });
           carte.append(suppr);
         }
@@ -334,22 +405,36 @@
     $('#fenetre-ajout').showModal();
   }
 
-  function enregistrerAjout(form) {
+  async function enregistrerAjout(form) {
     const d = new FormData(form);
     const vers = String(d.get('texte')).replace(/\r/g, '').split('\n').map((l) => l.trim());
     while (vers.length && !vers[vers.length - 1]) vers.pop();
     while (vers.length && !vers[0]) vers.shift();
     if (!vers.length) return;
     const poeme = {
-      id: 'perso-' + Date.now(),
       titre: String(d.get('titre')).trim(),
       auteur: String(d.get('auteur')).trim(),
       langue: d.get('langue'),
       vers,
-      perso: true,
     };
-    sauverPerso(poemesPerso().concat(poeme));
-    afficherListe();
+    if (Base.actif) {
+      const bouton = form.querySelector('button[value=ok]');
+      bouton.disabled = true;
+      try {
+        await Base.ajouter(poeme);
+      } catch (e) {
+        montrerEtatScan('Enregistrement impossible : ' + e.message + ' · ما تسجلاتش.', true);
+        return;
+      } finally {
+        bouton.disabled = false;
+      }
+      $('#fenetre-ajout').close();
+      await chargerBase();
+    } else {
+      sauverPerso(poemesPerso().concat({ ...poeme, id: 'perso-' + Date.now(), perso: true }));
+      $('#fenetre-ajout').close();
+      afficherListe();
+    }
   }
 
   // ---------- Lire un poème depuis une photo (OCR) ----------
@@ -495,7 +580,15 @@
   $('#btn-verifier').addEventListener('click', () => { cacherAlerte(); analyser($('#saisie').value.trim()); });
   $('#btn-ajouter').addEventListener('click', ouvrirAjout);
   $('#form-ajout').addEventListener('submit', (e) => {
-    if (e.submitter && e.submitter.value === 'ok') enregistrerAjout(e.target);
+    if (!e.submitter || e.submitter.value !== 'ok') return;
+    e.preventDefault();
+    enregistrerAjout(e.target);
+  });
+  $('#btn-enseignant').addEventListener('click', () => (etat.enseignant ? Base.deconnecter() : ouvrirConnexion()));
+  $('#form-connexion').addEventListener('submit', (e) => {
+    if (!e.submitter || e.submitter.value !== 'ok') return;
+    e.preventDefault();
+    seConnecter(e.target);
   });
 
   ['#scan-photo', '#scan-image'].forEach((sel) => $(sel).addEventListener('change', async (e) => {
@@ -511,4 +604,14 @@
 
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   afficherListe();
+  majEspaceEnseignant();
+  if (Base.actif) {
+    Base.surSession((utilisateur) => {
+      const vientDeSeConnecter = utilisateur && !etat.enseignant;
+      etat.enseignant = utilisateur;
+      majEspaceEnseignant();
+      if (vientDeSeConnecter) setTimeout(envoyerPoemesLocaux, 0);
+    });
+    chargerBase();
+  }
 })();

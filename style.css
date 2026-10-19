@@ -50,6 +50,9 @@ body {
 }
 .filtres button.actif, .bascule button.actif { background: var(--carte); color: var(--encre); font-weight: 700; box-shadow: 0 1px 3px #0002; }
 
+.boutons-barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#erreur-base { margin: 0 0 16px; }
+.poeme-carte .drapeau.local { margin-inline-start: 6px; background: #e8f0fc; color: var(--bleu); }
 .liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 
 .poeme-carte {

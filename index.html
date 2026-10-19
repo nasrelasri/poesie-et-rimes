@@ -22,8 +22,12 @@
         <button data-filtre="fr">Français</button>
         <button data-filtre="ar">العربية</button>
       </div>
-      <button id="btn-ajouter" class="btn secondaire">＋ Ajouter un poème · أضف قصيدة</button>
+      <div class="boutons-barre">
+        <button id="btn-ajouter" class="btn secondaire">＋ Ajouter un poème · أضف قصيدة</button>
+        <button id="btn-enseignant" class="btn lien" hidden></button>
+      </div>
     </div>
+    <p id="erreur-base" class="alerte" hidden>Les poèmes partagés n'ont pas pu être chargés. Vérifie la connexion internet. · ما قدرناش نجيبو القصائد المشتركة.</p>
     <div id="liste" class="liste"></div>
   </main>
 
@@ -100,7 +104,24 @@
     </form>
   </dialog>
 
+  <!-- Fenêtre : connexion enseignant -->
+  <dialog id="fenetre-connexion">
+    <form id="form-connexion" method="dialog">
+      <h2>Espace enseignant · فضاء الأستاذ</h2>
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Mot de passe · كلمة السر <input name="motdepasse" type="password" autocomplete="current-password" required></label>
+      <p id="erreur-connexion" class="alerte" hidden>Email ou mot de passe incorrect. · الإيميل ولا كلمة السر غالطين.</p>
+      <div class="actions">
+        <button value="annuler" formnovalidate class="btn lien">Annuler · إلغاء</button>
+        <button value="ok" type="submit" class="btn">Se connecter · دخول</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="config.js"></script>
+  <script src="base.js"></script>
   <script src="moteur.js"></script>
   <script src="poemes.js"></script>
   <script src="app.js"></script>
