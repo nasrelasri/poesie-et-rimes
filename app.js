@@ -329,6 +329,8 @@
 
   function ouvrirAjout() {
     $('#form-ajout').reset();
+    $('#scan-etat').textContent = '';
+    majDirectionSaisie();
     $('#fenetre-ajout').showModal();
   }
 
@@ -348,6 +350,47 @@
     };
     sauverPerso(poemesPerso().concat(poeme));
     afficherListe();
+  }
+
+  // ---------- Lire un poème depuis une photo (OCR) ----------
+
+  async function lirePhoto(fichier) {
+    const etatScan = $('#scan-etat');
+    const form = $('#form-ajout');
+    if (!fichier) return;
+    if (!window.Tesseract) {
+      etatScan.textContent = 'Lecture impossible sans internet. · خاص الأنترنيت.';
+      etatScan.classList.add('erreur');
+      return;
+    }
+    etatScan.classList.remove('erreur');
+    etatScan.textContent = '⏳ Lecture… · جاري القراءة…';
+    const langue = form.langue.value;
+    let worker;
+    try {
+      worker = await Tesseract.createWorker(langue === 'ar' ? 'ara' : 'fra', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') etatScan.textContent = '⏳ ' + Math.round(m.progress * 100) + ' %';
+        },
+      });
+      const { data } = await worker.recognize(fichier);
+      const texte = data.text
+        .split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).join('\n')
+        .replace(/\n{3,}/g, '\n\n').trim();
+      if (!texte) throw new Error('vide');
+      form.texte.value = texte;
+      etatScan.textContent = '✓ Vérifie le texte et corrige les erreurs. · راجع النص وصحّح الأخطاء.';
+    } catch {
+      etatScan.textContent = 'Je n\'ai pas pu lire la photo. Essaie une photo plus nette. · ما قدرتش نقرا الصورة.';
+      etatScan.classList.add('erreur');
+    } finally {
+      if (worker) worker.terminate();
+    }
+  }
+
+  function majDirectionSaisie() {
+    const form = $('#form-ajout');
+    form.texte.dir = form.langue.value === 'ar' ? 'rtl' : 'ltr';
   }
 
   // ---------- Branchements ----------
@@ -374,6 +417,12 @@
   $('#form-ajout').addEventListener('submit', (e) => {
     if (e.submitter && e.submitter.value === 'ok') enregistrerAjout(e.target);
   });
+
+  ['#scan-photo', '#scan-image'].forEach((sel) => $(sel).addEventListener('change', (e) => {
+    lirePhoto(e.target.files[0]);
+    e.target.value = '';
+  }));
+  $('#form-ajout').langue.addEventListener('change', majDirectionSaisie);
 
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   afficherListe();

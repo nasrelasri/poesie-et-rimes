@@ -23,6 +23,8 @@ Le micro marche dans Chrome ou Safari, et il faut une connexion internet.
 ## Ajouter des poèmes
 
 - Depuis l'application : bouton « ＋ Ajouter un poème ». Ces poèmes restent dans ce navigateur seulement.
+  On peut taper le texte, ou le lire depuis une photo (📷 Photo / 🖼 Image) : choisir d'abord la langue,
+  puis vérifier et corriger le texte lu avant d'enregistrer.
 - Pour tout le monde : les ajouter dans `poemes.js`. Un vers par ligne, ligne vide = nouvelle strophe,
   et en arabe « / » entre الصدر et العجز.
 
