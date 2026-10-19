@@ -11,7 +11,7 @@ Avec la base, les poèmes ajoutés par les enseignants apparaissent chez tout le
    (sinon n'importe qui pourrait se créer un compte enseignant).
 4. **Authentication → Users → Add user → Create new user** : un compte par enseignant
    (email + mot de passe, cocher **Auto Confirm User**).
-5. **Project Settings → API** : copier **Project URL** et la clé **anon public**
+5. Bouton **Connect** (ou **Project Settings → API Keys**) : copier **Project URL** et la **Publishable key**
    dans `config.js`.
 
 La clé `anon` peut être publique : les règles de `supabase.sql` empêchent
