@@ -354,38 +354,118 @@
 
   // ---------- Lire un poème depuis une photo (OCR) ----------
 
-  async function lirePhoto(fichier) {
+  const TAILLE_MAX_OCR = 2000;
+  const DELAI_MAX_OCR = 120000;
+
+  function montrerEtatScan(msg, erreur) {
     const etatScan = $('#scan-etat');
+    etatScan.textContent = msg;
+    etatScan.classList.toggle('erreur', !!erreur);
+  }
+
+  function chargerImage(fichier) {
+    return new Promise((ok, ko) => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = () => ko(new Error('format'));
+      img.src = URL.createObjectURL(fichier);
+    });
+  }
+
+  // Les photos de téléphone sont énormes (12 Mpx et plus) : le téléphone manque de mémoire
+  // pour les lire telles quelles. On les réduit et on les passe en niveaux de gris.
+  async function preparerImage(source) {
+    if (source instanceof Blob) {
+      try { source = await createImageBitmap(source, { imageOrientation: 'from-image' }); }
+      catch { source = await chargerImage(source); }
+    }
+    const w = source.videoWidth || source.naturalWidth || source.width;
+    const h = source.videoHeight || source.naturalHeight || source.height;
+    if (!w || !h) throw new Error('format');
+    const k = Math.min(1, TAILLE_MAX_OCR / Math.max(w, h));
+    const toile = document.createElement('canvas');
+    toile.width = Math.round(w * k);
+    toile.height = Math.round(h * k);
+    const ctx = toile.getContext('2d');
+    ctx.filter = 'grayscale(1) contrast(1.3)';
+    ctx.drawImage(source, 0, 0, toile.width, toile.height);
+    return toile;
+  }
+
+  async function lirePhoto(source) {
     const form = $('#form-ajout');
-    if (!fichier) return;
+    if (!source) return;
     if (!window.Tesseract) {
-      etatScan.textContent = 'Lecture impossible sans internet. · خاص الأنترنيت.';
-      etatScan.classList.add('erreur');
+      montrerEtatScan('Lecture impossible sans internet. · خاص الأنترنيت.', true);
       return;
     }
-    etatScan.classList.remove('erreur');
-    etatScan.textContent = '⏳ Lecture… · جاري القراءة…';
+    montrerEtatScan('⏳ Lecture… · جاري القراءة…');
     const langue = form.langue.value;
     let worker;
+    let minuteur;
     try {
+      const image = await preparerImage(source);
       worker = await Tesseract.createWorker(langue === 'ar' ? 'ara' : 'fra', 1, {
         logger: (m) => {
-          if (m.status === 'recognizing text') etatScan.textContent = '⏳ ' + Math.round(m.progress * 100) + ' %';
+          if (m.status === 'recognizing text') montrerEtatScan('⏳ ' + Math.round(m.progress * 100) + ' %');
         },
       });
-      const { data } = await worker.recognize(fichier);
+      const trop = new Promise((_, ko) => { minuteur = setTimeout(() => ko(new Error('delai')), DELAI_MAX_OCR); });
+      const { data } = await Promise.race([worker.recognize(image), trop]);
       const texte = data.text
         .split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).join('\n')
         .replace(/\n{3,}/g, '\n\n').trim();
       if (!texte) throw new Error('vide');
       form.texte.value = texte;
-      etatScan.textContent = '✓ Vérifie le texte et corrige les erreurs. · راجع النص وصحّح الأخطاء.';
-    } catch {
-      etatScan.textContent = 'Je n\'ai pas pu lire la photo. Essaie une photo plus nette. · ما قدرتش نقرا الصورة.';
-      etatScan.classList.add('erreur');
+      montrerEtatScan('✓ Vérifie le texte et corrige les erreurs. · راجع النص وصحّح الأخطاء.');
+    } catch (e) {
+      console.error('OCR :', e);
+      const msg = {
+        format: 'Ce format d\'image n\'est pas lisible. Essaie une photo JPEG ou PNG. · نوع الصورة ما كيتقراش.',
+        vide: 'Aucun texte trouvé. Vérifie la langue choisie et prends une photo plus nette. · ما لقيتش نص، تأكد من اللغة.',
+        delai: 'C\'est trop long. Essaie une photo plus proche du texte. · طوّلات بزاف، قرّب الصورة من النص.',
+      }[e && e.message] || 'Je n\'ai pas pu lire la photo. Essaie une photo plus nette. · ما قدرتش نقرا الصورة.';
+      montrerEtatScan(msg, true);
     } finally {
+      clearTimeout(minuteur);
       if (worker) worker.terminate();
     }
+  }
+
+  // Caméra dans la page : on ne quitte pas l'application pour prendre la photo
+  // (sur Android, le navigateur recharge parfois la page au retour de l'appareil photo).
+  let fluxCamera = null;
+
+  async function ouvrirCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#scan-photo').click(); return; }
+    try {
+      fluxCamera = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+    } catch {
+      $('#scan-photo').click();
+      return;
+    }
+    const video = $('#camera-video');
+    video.srcObject = fluxCamera;
+    $('#camera').hidden = false;
+    montrerEtatScan('');
+  }
+
+  function fermerCamera() {
+    if (fluxCamera) fluxCamera.getTracks().forEach((t) => t.stop());
+    fluxCamera = null;
+    $('#camera-video').srcObject = null;
+    $('#camera').hidden = true;
+  }
+
+  async function prendrePhoto() {
+    const video = $('#camera-video');
+    if (!video.videoWidth) return;
+    const image = await preparerImage(video);
+    fermerCamera();
+    lirePhoto(image);
   }
 
   function majDirectionSaisie() {
@@ -418,10 +498,15 @@
     if (e.submitter && e.submitter.value === 'ok') enregistrerAjout(e.target);
   });
 
-  ['#scan-photo', '#scan-image'].forEach((sel) => $(sel).addEventListener('change', (e) => {
-    lirePhoto(e.target.files[0]);
+  ['#scan-photo', '#scan-image'].forEach((sel) => $(sel).addEventListener('change', async (e) => {
+    const fichier = e.target.files[0];
+    await lirePhoto(fichier);
     e.target.value = '';
   }));
+  $('#btn-camera').addEventListener('click', ouvrirCamera);
+  $('#btn-camera-prendre').addEventListener('click', prendrePhoto);
+  $('#btn-camera-annuler').addEventListener('click', fermerCamera);
+  $('#fenetre-ajout').addEventListener('close', fermerCamera);
   $('#form-ajout').langue.addEventListener('change', majDirectionSaisie);
 
   if ('speechSynthesis' in window) speechSynthesis.getVoices();

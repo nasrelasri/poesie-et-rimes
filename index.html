@@ -76,13 +76,19 @@
         </select>
       </label>
       <div class="scan">
-        <label class="btn secondaire">📷 Photo · صوّر
-          <input type="file" accept="image/*" capture="environment" id="scan-photo" hidden>
-        </label>
+        <button type="button" id="btn-camera" class="btn secondaire">📷 Photo · صوّر</button>
+        <input type="file" accept="image/*" capture="environment" id="scan-photo" hidden>
         <label class="btn secondaire">🖼 Image · صورة
           <input type="file" accept="image/*" id="scan-image" hidden>
         </label>
         <span id="scan-etat" class="scan-etat"></span>
+      </div>
+      <div id="camera" class="camera" hidden>
+        <video id="camera-video" playsinline autoplay muted></video>
+        <div class="actions">
+          <button type="button" id="btn-camera-annuler" class="btn lien">Annuler · إلغاء</button>
+          <button type="button" id="btn-camera-prendre" class="btn">📸 Prendre · التقط</button>
+        </div>
       </div>
       <label>Texte · النص
         <textarea name="texte" rows="10" required placeholder="Un vers par ligne. Ligne vide = nouvelle strophe.&#10;بيت في كل سطر، و « / » بين الصدر والعجز."></textarea>

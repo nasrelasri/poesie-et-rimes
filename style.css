@@ -134,6 +134,9 @@ dialog { border: 0; border-radius: var(--rayon); padding: 24px; width: min(560px
 .scan .btn { margin: 0; font-size: .95rem; padding: 10px 16px; }
 .scan-etat { color: var(--doux); font-size: .95rem; }
 .scan-etat.erreur { color: var(--faux); }
+.camera { margin-bottom: 12px; }
+.camera video { width: 100%; max-height: 50vh; border-radius: 12px; background: #000; object-fit: contain; }
+.camera .actions { margin-top: 10px; }
 dialog::backdrop { background: #0005; }
 dialog h2 { margin-top: 0; }
 dialog label { display: block; margin-bottom: 12px; font-weight: 700; }
