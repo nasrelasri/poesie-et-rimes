@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Poésie et Rimes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="entete">
+    <h1><img src="logo.svg" alt="" class="logo"> Poésie et Rimes <span class="ar">· الشعر والقوافي</span></h1>
+  </header>
+
+  <!-- Écran 1 : choisir un poème -->
+  <main id="accueil" class="ecran">
+    <div class="barre">
+      <div class="filtres" role="tablist">
+        <button data-filtre="tous" class="actif">Tous · الكل</button>
+        <button data-filtre="fr">Français</button>
+        <button data-filtre="ar">العربية</button>
+      </div>
+      <button id="btn-ajouter" class="btn secondaire">＋ Ajouter un poème · أضف قصيدة</button>
+    </div>
+    <div id="liste" class="liste"></div>
+  </main>
+
+  <!-- Écran 2 : réciter -->
+  <main id="lecture" class="ecran" hidden>
+    <button id="btn-retour" class="btn lien">← Retour · رجوع</button>
+
+    <section class="carte">
+      <h2 id="titre"></h2>
+      <p id="auteur" class="auteur"></p>
+
+      <div class="options">
+        <div class="bascule" role="group" aria-label="Mode">
+          <button data-mode="tout" class="actif">Tout le poème · القصيدة كاملة</button>
+          <button data-mode="vers">Vers par vers · بيت ببيت</button>
+        </div>
+        <label class="case"><input type="checkbox" id="memoire"> De mémoire · من الذاكرة</label>
+      </div>
+
+      <div id="texte" class="texte"></div>
+
+      <div class="actions">
+        <button id="btn-ecouter" class="btn secondaire">🔊 Écouter · استمع</button>
+        <button id="btn-micro" class="btn micro">🎤 Réciter · سمّع</button>
+      </div>
+
+      <p id="transcription" class="transcription" hidden></p>
+      <p id="alerte" class="alerte" hidden></p>
+
+      <details class="clavier">
+        <summary>✍️ Écrire au lieu de parler · اكتب بدل الكلام</summary>
+        <textarea id="saisie" rows="3"></textarea>
+        <button id="btn-verifier" class="btn secondaire">Vérifier · تحقق</button>
+      </details>
+    </section>
+
+    <section id="resultat" class="carte resultat" hidden></section>
+  </main>
+
+  <!-- Fenêtre : ajouter un poème -->
+  <dialog id="fenetre-ajout">
+    <form id="form-ajout" method="dialog">
+      <h2>Ajouter un poème · أضف قصيدة</h2>
+      <label>Titre · العنوان <input name="titre" required></label>
+      <label>Auteur · الشاعر <input name="auteur"></label>
+      <label>Langue · اللغة
+        <select name="langue">
+          <option value="fr">Français</option>
+          <option value="ar">العربية</option>
+        </select>
+      </label>
+      <label>Texte · النص
+        <textarea name="texte" rows="10" required placeholder="Un vers par ligne. Ligne vide = nouvelle strophe.&#10;بيت في كل سطر، و « / » بين الصدر والعجز."></textarea>
+      </label>
+      <div class="actions">
+        <button value="annuler" formnovalidate class="btn lien">Annuler · إلغاء</button>
+        <button value="ok" class="btn">Enregistrer · حفظ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="moteur.js"></script>
+  <script src="poemes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
